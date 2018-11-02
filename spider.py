@@ -6,6 +6,7 @@ import urllib.parse
 import re
 from bs4 import BeautifulSoup as BS 
 import pandas as pd
+import time
 
 url_list = ["http://search.banggo.com/search/a_a_a_MC_a_a_a_a_a_a_a_a_97-202s.shtml",
         "http://search.banggo.com/search/a_a_a_MB_a_a_a_a_a_a_a_a_97-202s.shtml"]
@@ -41,6 +42,8 @@ def parse_promotion(s):
     match = pattern.search(s)
     if match:
         promotion = match.group().strip("折")
+        if len(promotion) == 1:
+            return int(promotion) * 0.1
         return int(promotion) * 0.01
     else:
         return 1.0
@@ -68,7 +71,7 @@ def get_product_list(url):
             promotion = parse_promotion(tags)
         
         # print(product_url, sku_id, price_current)
-        result.append({"a_sku_id": sku_id, "c_price": price_current * promotion, "b_url": product_url})
+        result.append({"a_sku_id": sku_id, "c_price" : price_current * promotion, "b_url": product_url})
     return result
 
 def store_products_data(products_list):
@@ -81,15 +84,9 @@ def store_products_data(products_list):
     except pd.errors.EmptyDataError:
         file_product_df = None
     current_product_df = pd.DataFrame(products_list, index=None)
+    current_product_df.rename(columns={"c_price": 'd' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, inplace=True)
     if file_product_df is not None:
-        price_column_name = str(file_product_df.columns[-1])
-        # print(price_column_name, type(price_column_name))
-        price_th = list(filter(str.isdigit, price_column_name))
-        if len(price_th) == 0:
-            price_th = 0
-        else:
-            price_th = int(price_th[0])
-        current_product_df.rename(columns={'c_price': 'c_price'+str(price_th+1)}, inplace=True)
+        pass
     else:
         file_product_df = pd.DataFrame(columns=['a_sku_id', "b_url"])
     new_product_df = pd.merge(file_product_df, current_product_df, how="outer", on=["a_sku_id", "b_url"], sort=False)
@@ -97,6 +94,7 @@ def store_products_data(products_list):
     new_product_df.to_csv(FILE, index=None)
 
 def alert():
+    pass
     file_df = pd.read_csv(FILE)
     last_price_idx = str(file_df.columns[-2]) 
     now_price_idx = str(file_df.columns[-1])
